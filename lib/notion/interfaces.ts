@@ -3,7 +3,7 @@ export interface Post {
   Title: string
   Slug: string
   Date: string
-  Tags: string[]
+  Tags: SelectProperty[]
   Excerpt: string
   OGImage: string
   Rank: number
@@ -46,16 +46,22 @@ export interface Paragraph {
 export interface Heading1 {
   RichTexts: RichText[]
   Color: string
+  IsToggleable: boolean
+  Children?: Block[]
 }
 
 export interface Heading2 {
   RichTexts: RichText[]
   Color: string
+  IsToggleable: boolean
+  Children?: Block[]
 }
 
 export interface Heading3 {
   RichTexts: RichText[]
   Color: string
+  IsToggleable: boolean
+  Children?: Block[]
 }
 
 export interface BulletedListItem {
@@ -109,6 +115,7 @@ export interface Code {
 export interface Quote {
   RichTexts: RichText[]
   Color: string
+  Children?: Block[]
 }
 
 export interface Equation {
@@ -119,6 +126,7 @@ export interface Callout {
   RichTexts: RichText[]
   Icon: Icon
   Color: string
+  Children?: Block[]
 }
 
 export interface SyncedBlock {
@@ -214,4 +222,10 @@ export interface Annotation {
 
 export interface Link {
   Url: string
+}
+
+export interface SelectProperty {
+  id: string;
+  name: string;
+  color: string;
 }

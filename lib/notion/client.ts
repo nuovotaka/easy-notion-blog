@@ -31,6 +31,7 @@ import {
   RichText,
   Text,
   Annotation,
+  SelectProperty,
 } from './interfaces'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { Client } = require('@notionhq/client')
@@ -247,12 +248,12 @@ export async function getPostBySlug(slug: string): Promise<Post|null> {
   return _buildPost(res.results[0])
 }
 
-export async function getPostsByTag(tag: string | undefined, pageSize = 100): Promise<Post[]> {
-  if (!tag) return []
+export async function getPostsByTag(tagName: string | undefined, pageSize = 100): Promise<Post[]> {
+  if (!tagName) return []
 
   if (blogIndexCache.exists()) {
     const allPosts = await getAllPosts()
-    return allPosts.filter(post => post.Tags.includes(tag)).slice(0, pageSize)
+    return allPosts.filter(post => post.Tags.map(t => t.name).includes(tagName)).slice(0, pageSize)
   }
 
   const params = {
@@ -261,7 +262,7 @@ export async function getPostsByTag(tag: string | undefined, pageSize = 100): Pr
       {
         property: 'Tags',
         multi_select: {
-          contains: tag,
+          contains: tagName,
         },
       },
     ]),
@@ -283,7 +284,7 @@ export async function getPostsByTag(tag: string | undefined, pageSize = 100): Pr
 }
 
 export async function getPostsByTagBefore(
-  tag: string,
+  tagName: string,
   date: string,
   pageSize = 100
 ): Promise<Post[]> {
@@ -291,7 +292,7 @@ export async function getPostsByTagBefore(
     const allPosts = await getAllPosts()
     return allPosts
       .filter(post => {
-        return post.Tags.includes(tag) && new Date(post.Date) < new Date(date)
+        return post.Tags.map(t => t.name).includes(tagName) && new Date(post.Date) < new Date(date)
       })
       .slice(0, pageSize)
   }
@@ -302,7 +303,7 @@ export async function getPostsByTagBefore(
       {
         property: 'Tags',
         multi_select: {
-          contains: tag,
+          contains: tagName,
         },
       },
       {
@@ -329,10 +330,10 @@ export async function getPostsByTagBefore(
     .map(pageObject => _buildPost(pageObject))
 }
 
-export async function getFirstPostByTag(tag: string): Promise<Post|null> {
+export async function getFirstPostByTag(tagName: string): Promise<Post|null> {
   if (blogIndexCache.exists()) {
     const allPosts = await getAllPosts()
-    const sameTagPosts = allPosts.filter(post => post.Tags.includes(tag))
+    const sameTagPosts = allPosts.filter(post => post.Tags.map(t => t.name).includes(tagName))
     return sameTagPosts[sameTagPosts.length - 1]
   }
 
@@ -342,7 +343,7 @@ export async function getFirstPostByTag(tag: string): Promise<Post|null> {
       {
         property: 'Tags',
         multi_select: {
-          contains: tag,
+          contains: tagName,
         },
       },
     ]),
@@ -407,6 +408,18 @@ export async function getAllBlocksByBlockId(blockId: string): Promise<Block[]> {
       block.SyncedBlock.Children = await _getSyncedBlockChildren(block)
     } else if (block.Type === 'toggle') {
       block.Toggle.Children = await getAllBlocksByBlockId(block.Id)
+    } else if (block.Type === 'paragraph' && block.HasChildren) {
+      block.Paragraph.Children = await getAllBlocksByBlockId(block.Id)
+    } else if (block.Type === 'heading_1' && block.HasChildren) {
+      block.Heading1.Children = await getAllBlocksByBlockId(block.Id)
+    } else if (block.Type === 'heading_2' && block.HasChildren) {
+      block.Heading2.Children = await getAllBlocksByBlockId(block.Id)
+    } else if (block.Type === 'heading_3' && block.HasChildren) {
+      block.Heading3.Children = await getAllBlocksByBlockId(block.Id)
+    } else if (block.Type === 'quote' && block.HasChildren) {
+      block.Quote.Children = await getAllBlocksByBlockId(block.Id)
+    } else if (block.Type === 'callout' && block.HasChildren) {
+      block.Callout.Children = await getAllBlocksByBlockId(block.Id)
     }
   }
 
@@ -441,6 +454,7 @@ function _buildBlock(blockObject: responses.BlockObject): Block {
       const heading1: Heading1 = {
         RichTexts: blockObject.heading_1.rich_text.map(_buildRichText),
         Color: blockObject.heading_1.color,
+        IsToggleable: blockObject.heading_1.is_toggleable,
       }
 
       block.Heading1 = heading1
@@ -449,6 +463,7 @@ function _buildBlock(blockObject: responses.BlockObject): Block {
       const heading2: Heading2 = {
         RichTexts: blockObject.heading_2.rich_text.map(_buildRichText),
         Color: blockObject.heading_2.color,
+        IsToggleable: blockObject.heading_2.is_toggleable,
       }
 
       block.Heading2 = heading2
@@ -457,6 +472,7 @@ function _buildBlock(blockObject: responses.BlockObject): Block {
       const heading3: Heading3 = {
         RichTexts: blockObject.heading_3.rich_text.map(_buildRichText),
         Color: blockObject.heading_3.color,
+        IsToggleable: blockObject.heading_3.is_toggleable,
       }
 
       block.Heading3 = heading3
@@ -701,26 +717,33 @@ async function _getColumns(blockId: string): Promise<Column[]> {
 
 async function _getSyncedBlockChildren(block: Block): Promise<Block[]> {
   let originalBlock: Block = block
-  if (block.SyncedBlock.SyncedFrom && block.SyncedBlock.SyncedFrom.BlockId) {
-    originalBlock = await getBlock(block.SyncedBlock.SyncedFrom.BlockId)
+  if (block.SyncedBlock && block.SyncedBlock.SyncedFrom && block.SyncedBlock.SyncedFrom.BlockId) {
+    try {
+      originalBlock = await getBlock(block.SyncedBlock.SyncedFrom.BlockId)
+    } catch (err) {
+      console.log(`Could not retrieve the original synced_block. error: ${err}`)
+      return []
+    }
   }
 
   const children = await getAllBlocksByBlockId(originalBlock.Id)
   return children
 }
 
-export async function getAllTags(): Promise<string[]> {
+export async function getAllTags(): Promise<SelectProperty[]> {
   if (blogIndexCache.exists()) {
     const allPosts = await getAllPosts()
-    return [...new Set(allPosts.flatMap(post => post.Tags))].sort()
+    return [...new Set(allPosts.flatMap(post => post.Tags))].sort((a: SelectProperty, b: SelectProperty) => a.name.localeCompare(b.name))
   }
 
   const res: responses.RetrieveDatabaseResponse = await client.databases.retrieve({
     database_id: DATABASE_ID,
   })
-  return res.properties.Tags.multi_select.options
-    .map(option => option.name)
-    .sort()
+
+  return res.properties.Tags.multi_select.options.reduce((acc: SelectProperty[], tag: SelectProperty) => {
+    acc.push(tag)
+    return acc
+  }, [] as SelectProperty[]).sort((a: SelectProperty, b: SelectProperty) => a.name.localeCompare(b.name))
 }
 
 function _buildFilter(conditions = []) {
@@ -777,7 +800,7 @@ function _buildPost(pageObject: responses.PageObject): Post {
     Title: prop.Page.title[0].plain_text,
     Slug: prop.Slug.rich_text[0].plain_text,
     Date: prop.Date.date.start,
-    Tags: prop.Tags.multi_select.map(opt => opt.name),
+    Tags: prop.Tags.multi_select ? prop.Tags.multi_select : [],
     Excerpt:
       prop.Excerpt.rich_text.length > 0
         ? prop.Excerpt.rich_text[0].plain_text
