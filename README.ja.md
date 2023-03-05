@@ -1,4 +1,4 @@
-[English](README.md) | 日本語
+[English](README.md) | 日本語 | [한국어](README.kr.md)
 
 # easy-notion-blog
 
@@ -13,6 +13,8 @@ easy-notion-blog を使えばあっという間に Notion Blog を始めるこ�
 - :pencil: **自分のNotionで**ブログが書ける
 - :hammer_and_wrench: ブログの見た目を**自分好みにカスタマイズ可能**
 - :white_check_mark: **Notion 公式API**を使っているので安心
+
+開発が活発な [astro-notion-blog](https://github.com/otoyo/astro-notion-blog) もご検討ください。
 
 ## スクリーンショット
 

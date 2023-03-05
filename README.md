@@ -1,4 +1,4 @@
-English | [日本語](README.ja.md)
+English | [日本語](README.ja.md) | [한국어](README.kr.md)
 
 # easy-notion-blog
 
@@ -13,6 +13,8 @@ It helps you to start your Notion Blog easily and rapidly.
 - :pencil: Can write a blog **on your Notion**
 - :hammer_and_wrench: **Can fully customize** the site's appearance
 - :white_check_mark: Using **official Notion APIs**
+
+Please consider [astro-notion-blog](https://github.com/otoyo/astro-notion-blog) as it is being developed well.
 
 ## Screenshots
 
